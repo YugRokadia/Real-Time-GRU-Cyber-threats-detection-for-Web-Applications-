@@ -1,36 +1,66 @@
-# GRU-Based Real-Time Web Threat Detection
+<p align="center">
+  <img src="assets/hero.svg" alt="GRU-Based Real-Time Web Threat Detection: a malicious payload flagged and a benign request passed" width="100%">
+</p>
 
-A deep learning model using **Bidirectional Gated Recurrent Units (GRUs)** to detect malicious web requests in real-time. The model treats request payloads as character-level sequences and learns to identify patterns indicative of SQL Injection (SQLi), Cross-Site Scripting (XSS), Command Injection, Path Traversal, SSTI, and other web attacks.
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="Keras" src="https://img.shields.io/badge/Keras-GRU-D00000?style=for-the-badge&logo=keras&logoColor=white">
+  <img alt="Test accuracy" src="https://img.shields.io/badge/test%20accuracy-97.86%25-16a34a?style=for-the-badge">
+  <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-0891b2?style=for-the-badge">
+</p>
 
-Trained on a large-scale dataset aggregated from six sources (five public datasets plus augmented samples) with comprehensive regularization to prevent overfitting.
+<p align="center">
+  <img alt="Samples" src="https://img.shields.io/badge/training%20samples-~695K-7c3aed?style=flat-square">
+  <img alt="Sources" src="https://img.shields.io/badge/data%20sources-6-d97706?style=flat-square">
+  <img alt="Attacks" src="https://img.shields.io/badge/attacks-SQLi%20·%20XSS%20·%20SSTI%20·%20more-dc2626?style=flat-square">
+</p>
 
-## 🎯 Key Results
+<p align="center">
+  <b><a href="#-the-idea">Idea</a> · <a href="#-key-results">Results</a> · <a href="#-model-architecture">Architecture</a> · <a href="#-dataset">Dataset</a> · <a href="#%EF%B8%8F-setup-and-installation">Setup</a> · <a href="#%EF%B8%8F-usage">Usage</a> · <a href="#-overfitting-analysis">Overfitting</a> · <a href="#-future-work">Future work</a></b>
+</p>
+
+> **Catch malicious web requests by reading them like a human analyst would: character by character.** A bidirectional GRU learns attack patterns for SQL injection, XSS, command injection, path traversal, SSTI and more directly from raw payloads, with no hand-written signatures.
+
+---
+
+## 💡 The idea
+
+Signature-based filters are brittle: attackers tweak a payload and the rule stops matching. This project treats each request as a **sequence of characters** and lets a recurrent network learn what attacks look like, including variants it has not seen verbatim.
+
+It is trained on roughly **695,000 samples aggregated from six sources**, regularized heavily so it generalizes, and evaluated on a held-out test set that the model never sees during training or validation.
+
+## 🎯 Key results
+
+<p align="center">
+  <img src="assets/results.svg" alt="97.86 percent test accuracy with a confusion matrix of 91,721 true negatives, 937 false positives, 2,033 false negatives and 44,315 true positives, plus precision and recall per class" width="100%">
+</p>
 
 | Metric | Score |
-|--------|-------|
-| **Test Accuracy** | **97.86%** |
-| Precision (Benign) | 98% |
-| Precision (Malicious) | 98% |
-| Recall (Benign) | 99% |
-| Recall (Malicious) | 96% |
-| F1 (macro avg) | 98% |
-| Train/Val Loss Gap | 0.006 (no overfitting) |
+| --- | :---: |
+| **Test accuracy** | **97.86%** |
+| Precision (benign / malicious) | 98% / 98% |
+| Recall (benign / malicious) | 99% / 96% |
+| F1 (macro average) | 98% |
+| Train / validation loss gap | 0.006 |
+
+In plain terms, on 139,006 unseen test requests the model wrongly blocked about **1.0%** of benign traffic (937 of 92,658) and missed about **4.4%** of attacks (2,033 of 46,348).
 
 ## ✨ Features
 
-- **Bidirectional Character-Level GRU Network**: Learns sequential patterns in both directions directly from raw payloads without manual feature engineering
-- **Large-Scale Training**: Samples from 6 diverse sources (XSS, SQLi, CSIC 2010, malicious URLs, master web attacks, augmented data)
-- **High Performance**: 97.86% accuracy on a held-out test set with balanced precision/recall
-- **Overfitting Prevention**: L2 regularization, spatial & dense dropout, learning rate scheduling, early stopping, class weighting, and proper train/val/test split
-- **Apple Silicon Optimized**: Configured for Metal GPU acceleration on M-series chips
-- **Interactive Testing**: CLI tool with single, batch, demo, and interactive prediction modes
-- **Full Metrics Suite**: Confusion matrices, ROC curve, Precision-Recall curve, training curves, learning rate schedule, and per-class metrics
+- 🔤 **Character-level bidirectional GRU.** Learns sequential patterns in both directions straight from raw payloads, without manual feature engineering.
+- 📚 **Large-scale training data.** Six diverse sources covering XSS, SQLi, CSIC 2010 HTTP requests, malicious URLs, a master web-attack set, and augmented data.
+- 🛡️ **Built not to overfit.** L2 regularization, spatial and dense dropout, learning-rate scheduling, early stopping, class weighting, and a proper train/validation/test split.
+- 🧪 **Interactive testing.** A CLI with single, batch, demo, and interactive prediction modes.
+- 📈 **Full metrics suite.** Confusion matrix, ROC and precision-recall curves, training curves, learning-rate schedule, and per-class metrics.
+- 🍎 **Apple Silicon ready.** Configured for Metal GPU acceleration on M-series chips.
 
-## 🧠 Model Architecture
+## 🧠 Model architecture
 
-Sequential Keras model for binary classification (benign vs. malicious):
+<p align="center">
+  <img src="assets/architecture.svg" alt="Architecture: character input, embedding, spatial dropout, bidirectional GRU, GRU, dense layers with dropout, sigmoid output" width="100%">
+</p>
 
-```
+```text
 Input (char sequences, max_len=300)
   → Embedding(vocab_size, 128)
   → SpatialDropout1D(0.15)
@@ -43,114 +73,79 @@ Input (char sequences, max_len=300)
   → Dense(1, Sigmoid)
 ```
 
-**Key Design Choices:**
-1. **Character-Level Tokenization**: Captures character patterns in attack payloads (e.g., `<script>`, `' OR 1=1`, `{{7*7}}`)
-2. **Bidirectional GRU**: First GRU layer reads sequences in both directions for richer context
-3. **Stacked GRU Layers**: Second GRU captures higher-level sequential patterns
-4. **SpatialDropout1D (15%)**: Drops entire embedding dimensions to prevent co-adaptation
-5. **L2 Regularization (1e-5)**: Light regularization applied to GRU kernels and Dense layers
-6. **ReduceLROnPlateau**: Halves learning rate after 3 epochs of val_loss stagnation
-7. **EarlyStopping (patience=7)**: Restores best weights to prevent overfitting
-8. **Class Weighting**: Computed automatically to handle label imbalance
+**Key design choices**
+
+1. **Character-level tokenization** captures patterns like `<script>`, `' OR 1=1`, and `{{7*7}}`.
+2. **Bidirectional GRU** gives the first layer context from both directions.
+3. **Stacked GRU layers** let the second layer capture higher-level sequential patterns.
+4. **SpatialDropout1D (15%)** drops entire embedding dimensions to prevent co-adaptation.
+5. **L2 regularization (1e-5)** is applied lightly to GRU kernels and dense layers.
+6. **ReduceLROnPlateau** halves the learning rate after 3 epochs of stagnating validation loss.
+7. **EarlyStopping (patience 7)** restores the best weights.
+8. **Class weighting** is computed automatically to handle the label imbalance.
 
 ## 📊 Dataset
 
-Combined from six sources, cleaned and deduplicated:
+Combined from six sources, then cleaned and deduplicated:
 
-| Dataset | Description |
-|---------|-------------|
-| XSS_dataset.csv | Cross-site scripting payloads |
-| SQL_Injection_Dataset.csv | SQL injection queries |
-| master_web_attack_dataset.csv | General web attack payloads (capped for balance) |
-| csic_2010.csv | HTTP requests (anomalous/normal) |
-| malicious_urls.csv | Malicious and benign URLs (capped for balance) |
-| augmented_data.csv | Supplemental data (SSTI, path traversal, benign URLs) |
+| Source file | Description |
+| --- | --- |
+| `XSS_dataset.csv` | Cross-site scripting payloads |
+| `SQL_Injection_Dataset.csv` | SQL injection queries |
+| `master_web_attack_dataset.csv` | General web attack payloads (capped for balance) |
+| `csic_2010.csv` | HTTP requests (anomalous / normal) |
+| `malicious_urls.csv` | Malicious and benign URLs (capped for balance) |
+| `augmented_data.csv` | Supplemental data (SSTI, path traversal, benign URLs) |
 
-**After cleaning:**
-
-| Stat | Value |
-|------|-------|
-| Total Samples | ~695,000 |
+| After cleaning | Value |
+| --- | --- |
+| Total samples | ~695,000 |
 | Benign (0) | ~66.7% |
 | Malicious (1) | ~33.3% |
-| Train / Val / Test Split | 60% / 20% / 20% (stratified) |
+| Train / validation / test | 60% / 20% / 20% (stratified) |
 
-## 📁 Project Structure
+## 📁 Project structure
 
-```
+```text
 .
 ├── train_model.py          # Training pipeline (data loading, model, training)
-├── test_model.py           # CLI tool to test the trained model
+├── test_model.py           # CLI to test the trained model
 ├── show_metrics.py         # Generate all evaluation visualizations
 ├── gru_model.keras         # Final trained model
-├── gru_model_best.keras    # Best model checkpoint (lowest val_loss)
+├── gru_model_best.keras    # Best checkpoint (lowest val_loss)
 ├── tokenizer.pickle        # Fitted character-level tokenizer
 ├── training_history.json   # Per-epoch training metrics (JSON)
 ├── epoch_metrics.csv       # Per-epoch metrics (CSVLogger output)
-├── test_results.npz        # Test set predictions (for show_metrics.py)
+├── test_results.npz        # Test-set predictions for show_metrics.py
 ├── metrics/                # Generated evaluation plots
-│   ├── training_curves.png
-│   ├── confusion_matrix.png
-│   ├── roc_curve.png
-│   ├── precision_recall_curve.png
-│   ├── class_metrics.png
-│   ├── learning_rate.png
-│   ├── training_dashboard.png
-│   └── epoch_metrics_table.txt
+├── assets/                 # README graphics
 ├── requirements.txt        # Python dependencies
-├── *.csv                   # Dataset files (see table above)
-└── README.md
+└── *.csv                   # Dataset files (see table above)
 ```
 
-## 🛠️ Setup and Installation
+## 🛠️ Setup and installation
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/<your-username>/GRU.git
-   cd GRU
-   ```
+```bash
+# 1. Clone
+git clone https://github.com/YugRokadia/GRU_Based_Threat_Detection_System-WebApplications-.git
+cd GRU_Based_Threat_Detection_System-WebApplications-
 
-2. **Create a Virtual Environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+# 2. Create a virtual environment
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 
-3. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 3. Install dependencies
+pip install -r requirements.txt
+```
 
-4. **Download Datasets**
-   Place all CSV dataset files in the project root directory. The training script checks for each file and skips any that are missing.
+**4. Add the datasets.** Place the CSV files from the [dataset table](#-dataset) in the project root. The training script checks for each file and skips any that are missing.
 
 ## ▶️ Usage
 
-### Train the Model
+### Test the trained model
 
 ```bash
-python train_model.py
-```
-
-This will:
-- Load and combine all available datasets (up to 6 sources)
-- Split into 60/20/20 stratified train/val/test sets
-- Compute class weights for imbalanced labels
-- Train the Bidirectional GRU model with regularization and callbacks
-- Save `gru_model.keras`, `gru_model_best.keras`, `tokenizer.pickle`, `training_history.json`, `epoch_metrics.csv`, and `test_results.npz`
-
-### Visualize Metrics
-
-```bash
-python show_metrics.py
-```
-
-Generates confusion matrix, ROC curve, Precision-Recall curve, training curves, learning rate schedule, training dashboard, and per-class metrics bar chart. All saved in the `metrics/` folder.
-
-### Test the Model
-
-```bash
-# Interactive mode — type payloads one at a time
+# Interactive mode: type payloads one at a time
 python test_model.py
 
 # Single prediction
@@ -163,47 +158,76 @@ python test_model.py --file payloads.txt
 python test_model.py --demo
 ```
 
-## 📈 Results
+### Train from scratch
 
-### Confusion Matrix (Held-Out Test Set)
+```bash
+python train_model.py
+```
 
-| | Predicted Benign | Predicted Malicious |
-|---|---|---|
-| **Actual Benign** | 91,721 (TN) | 937 (FP) |
-| **Actual Malicious** | 2,033 (FN) | 44,315 (TP) |
+This will:
 
-### Training Progress
+- load and combine all available datasets (up to six sources)
+- split into stratified 60/20/20 train, validation, and test sets
+- compute class weights for the imbalanced labels
+- train the bidirectional GRU with regularization and callbacks
+- save `gru_model.keras`, `gru_model_best.keras`, `tokenizer.pickle`, `training_history.json`, `epoch_metrics.csv`, and `test_results.npz`
 
-The model trained for 30 epochs with automatic learning rate reductions:
+### Visualize metrics
 
-| Epoch | Train Acc | Val Acc | Train Loss | Val Loss | LR |
-|-------|-----------|---------|------------|----------|-----|
+```bash
+python show_metrics.py
+```
+
+Generates the confusion matrix, ROC and precision-recall curves, training curves, learning-rate schedule, training dashboard, and per-class metrics. Everything is saved to `metrics/`.
+
+## 📈 Training progress
+
+The model trained for 30 epochs with automatic learning-rate reductions:
+
+| Epoch | Train acc | Val acc | Train loss | Val loss | Learning rate |
+| :---: | :---: | :---: | :---: | :---: | :---: |
 | 1 | 67.0% | 67.1% | 0.641 | 0.637 | 5e-4 |
 | 10 | 94.1% | 95.9% | 0.191 | 0.146 | 2.5e-4 |
 | 20 | 97.5% | 97.6% | 0.091 | 0.084 | 1.25e-4 |
 | 30 | 97.7% | 97.9% | 0.084 | 0.078 | 6.25e-5 |
 
-## 🔬 Overfitting Analysis
+Detailed plots live in [`metrics/`](metrics/): training curves, confusion matrix, ROC curve, precision-recall curve, class metrics, and the training dashboard.
+
+## 🔬 Overfitting analysis
 
 | Check | Result |
-|-------|--------|
-| Train/Val Loss Gap (final) | 0.006 — negligible |
-| Train/Val Accuracy Gap | 0.14% — negligible |
-| Val loss trend | Monotonically decreasing across 30 epochs |
-| Regularization applied | SpatialDropout (15%), Dense Dropout (20–30%), L2 (1e-5), Class Weights |
-| Data leakage | None — tokenizer fit on training set only |
+| --- | --- |
+| Train / val loss gap (final) | 0.006, negligible |
+| Train / val accuracy gap | 0.14%, negligible |
+| Validation loss trend | Decreasing across all 30 epochs |
+| Regularization | SpatialDropout (15%), dense dropout (20-30%), L2 (1e-5), class weights |
+| Data leakage | None: tokenizer fit on the training set only |
 | Evaluation set | Held-out test set, never seen during training or validation |
-| **Verdict** | **No overfitting** |
+| **Verdict** | **No sign of overfitting** |
 
-## 💡 Future Work
+## ⚠️ Limitations
 
-- **Expand Dataset**: Add command injection and path traversal-specific samples
-- **Model Comparison**: Benchmark against LSTMs, Transformers, and 1D-CNNs
-- **Hyperparameter Tuning**: Use KerasTuner or Optuna for systematic search
-- **Deployment**: REST API with Flask/FastAPI for real-time inference
-- **Multi-Class Classification**: Distinguish between attack types (XSS, SQLi, SSTI, etc.)
-- **Adversarial Robustness**: Evaluate against evasion techniques and obfuscated payloads
+- It is a **binary** classifier (benign vs. malicious); it does not name the attack type yet.
+- The dataset mixes several public sources, so real-world traffic from a specific application may behave differently. Validate on your own traffic before relying on it.
+- About **4.4%** of attacks in the test set were missed, so treat it as one layer of defence, not the only one.
+- Obfuscated and evasion payloads have not been systematically tested.
+
+## 💡 Future work
+
+- **Expand the dataset** with more command-injection and path-traversal samples.
+- **Compare models** against LSTMs, Transformers, and 1D-CNNs.
+- **Tune hyperparameters** systematically with KerasTuner or Optuna.
+- **Deploy** behind a REST API (Flask or FastAPI) for real-time inference.
+- **Multi-class classification** to distinguish XSS, SQLi, SSTI, and other attacks.
+- **Adversarial robustness** testing against evasion and obfuscation.
+
+## 🙏 Acknowledgements
+
+- [TensorFlow / Keras](https://keras.io/)
+- The public datasets used for training (XSS, SQL injection, CSIC 2010, malicious URLs, and web-attack collections)
 
 ## 📄 License
 
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+Released under the [MIT License](LICENSE). Copyright (c) 2026 Yug Rokadia.
+
+<p align="center"><sub>Reading requests the way an attacker writes them. 🛡️</sub></p>
